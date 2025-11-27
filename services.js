@@ -2,8 +2,8 @@ const { Client } = require("@gradio/client");
 
 // ENVIRONMENT VARIABLES (Ensure these are correctly loaded in the worker context)
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-const TELEGRAM_API_TOKEN = "8570297709:AAE_DeqS6jCbnMgVUrs5u43P0a2Eri-3T8c";
-const TELEGRAM_CHAT_ID = "6112657314"
+const TELEGRAM_API_TOKEN = process.env.TELEGRAM_API_TOKEN;
+const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID
 // ------------ LYRICS -------------
 async function generateLyrics() {
   const prompt = `
