@@ -1,29 +1,10 @@
-const express = require("express");
-const cors = require("cors");
-const { Client } = require("@gradio/client"); 
-const PORT = process.env.PORT || 3000;
-const { getNewJobId, updateJobStatus, getJob } = require("./utils");
+const { Client } = require("@gradio/client");
 
-require('dotenv').config()
-// ===============================
-// 1. UTILITY: JOB ID AND DATABASE MOCK
-// ===============================
-
-// --- API KEYS ---
-
+// ENVIRONMENT VARIABLES (Ensure these are correctly loaded in the worker context)
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-const TELEGRAM_API_TOKEN =  process.env.TELEGRAM_API_TOKEN
-
-const TELEGRAM_CHAT_ID = "6112657314";
-
-const app = express();
-app.use(cors());
-
-// ===============================
-// 1. GENERATE LYRICS (OpenRouter)
-// 
-// Updated to be very strict on output format for Gradio compatibility.
-// ===============================
+const TELEGRAM_API_TOKEN = "8570297709:AAE_DeqS6jCbnMgVUrs5u43P0a2Eri-3T8c";
+const TELEGRAM_CHAT_ID = "6112657314"
+// ------------ LYRICS -------------
 async function generateLyrics() {
   const prompt = `
 Write a complete set of song lyrics for a four-minute thoughtful pop ballad 
@@ -31,7 +12,7 @@ about finding hope after a period of struggle.
 **Your response MUST begin with the [verse] tag.**
 Use ONLY these tags: [verse], [chorus], [bridge].
 Do NOT include any introductory text, explanation, or title.
-`; // <-- STRICT PROMPT to prevent Gradio formatting errors
+`;
 
   const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
@@ -46,24 +27,19 @@ Do NOT include any introductory text, explanation, or title.
   });
 
   const data = await response.json();
-
+  
   if (!data.choices || !data.choices[0]) {
     console.error("OpenRouter response:", data);
     throw new Error("Lyrics generation failed (no choices returned)");
   }
-
+  
   return data.choices[0].message.content;
 }
 
-
-// ===============================
-// 2. GENERATE AUDIO (Using Gradio Client)
-// ===============================
+// ------------ AUDIO -------------
 async function generateAudio(lyrics) {
   try {
-    console.log("Connecting to Gradio client for audio...");
     const client = await Client.connect("https://tencent-songgeneration.hf.space/");
-
     const result = await client.predict("/generate_song", {
       lyric: lyrics,
       description: null,
@@ -72,29 +48,24 @@ async function generateAudio(lyrics) {
       cfg_coef: 1.5,
       temperature: 0.8
     });
-
+  
     const audioUrl = result?.data?.[0]?.url;
-
+    
     if (!audioUrl) {
       console.error("Gradio Client Result:", result);
-      // Check for the specific Gradio error message if a URL is missing
       const errorMessage = result?.data?.[1] || "No URL returned by Gradio.";
       throw new Error(`Audio generation failed: ${errorMessage}`);
     }
 
     return audioUrl;
-
+    
   } catch (err) {
     console.error("Gradio Client Error:", err);
     throw new Error(`Audio generation failed with Gradio Client: ${err.message}`);
   }
 }
 
-// ===============================
-// 3. SEND TO TELEGRAM (With Retry Logic)
-//
-// Added retry loop to handle transient network errors (ConnectTimeoutError).
-// ===============================
+// ------------ TELEGRAM (FIXED WITH RETRY LOGIC) -------------
 async function sendToTelegram(lyrics, audioUrl) {
   const MAX_ATTEMPTS = 3;
   let lastError = null;
@@ -144,52 +115,8 @@ async function sendToTelegram(lyrics, audioUrl) {
   throw new Error(`Telegram sending failed after ${MAX_ATTEMPTS} attempts. Last error: ${lastError.message}`);
 }
 
-// ===============================
-// MAIN ROUTE
-// ===============================
-app.get("/generate", async (req, res) => {
-  try {
-    const jobId = getNewJobId();
-    updateJobStatus(jobId, "PENDING", { prompt: "Thoughtful pop ballad lyrics/audio" });
-
-    // 🔥 Replace the old line with this new worker process:
-    const { fork } = require("child_process");
-    fork("./worker.js", [jobId]);
-
-    // Respond immediately
-    res.status(202).json({ 
-        message: "Song generation initiated. Please use the /status endpoint to check progress.",
-        jobId: jobId 
-    });
-
-  } catch (err) {
-    console.error("SERVER ERROR during job creation:", err);
-    res.status(500).json({ error: "Could not initiate song generation process." });
-  }
-});
-
-// ===============================
-// START SERVER
-// ===============================
-
-app.get("/generate", async (req, res) => {
-  try {
-    const jobId = getNewJobId();
-    updateJobStatus(jobId, "PENDING", { prompt: "Thoughts..." });
-
-    // spawn worker
-    const { fork } = require("child_process");
-    fork("./worker.js", [jobId]);
-
-    res.status(202).json({
-      message: "Song generation started.",
-      jobId
-    });
-
-  } catch (err) {
-    console.error("SERVER ERROR during job creation:", err);
-    res.status(500).json({ error: "Could not initiate job" });
-  }
-});app.listen(PORT, () => {
-  console.log("Server running on port " + PORT);
-});
+module.exports = {
+  generateLyrics,
+  generateAudio,
+  sendToTelegram
+};
