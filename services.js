@@ -7,8 +7,12 @@ const { Client } = require("@gradio/client");
 
 // -------------------------
 // CONNECT TO MONGO
+// -----------------------
+// -------------------------
+// CONNECT TO MONGO
 // -------------------------
 const client = new MongoClient(process.env.MONGO_URI);
+
 async function connectDB() {
     if (!client.isConnected?.()) {
         await client.connect();
