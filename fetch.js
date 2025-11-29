@@ -1,8 +1,7 @@
 const { MongoClient } = require("mongodb");
 
 // Direct MongoDB URI (you requested no .env)
-const MONGODB_URI = "mongodb+srv://naeem:naeem12345@cluster0.pjjlwte.mongodb.net/?retryWrites=true&w=majority";
-
+const MONGODB_URI = process.env.MONGODB_URI ;
 // Database + collection
 const DB_NAME = "ai_music_jobs";
 const COLLECTION_NAME = "generated_songs";
