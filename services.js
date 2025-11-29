@@ -1,8 +1,6 @@
 // ----------------------------------------
 // services.js (FINAL WORKING VERSION)
-// ----------------------------------------
-
-require("dotenv").config();
+// -------------------------------------
 const { MongoClient } = require("mongodb");
 const fetch = require("node-fetch"); // v2 for CommonJS
 const { Client } = require("@gradio/client");
